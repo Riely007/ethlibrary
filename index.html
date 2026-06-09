@@ -6,12 +6,26 @@
   <title>The Ethereum Library</title>
   <meta name="description" content="A curated collection of essential Ethereum reading. Free to read, free to keep.">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@500;700;800&display=swap');
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('fonts/Inter.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'alphaLyrae';
+      font-weight: 500;
+      font-display: swap;
+      src: url('fonts/AlphaLyrae_Medium.woff2') format('woff2');
+    }
 
     /* ── Design tokens ── */
     :root {
       --ease-out-expo: cubic-bezier(.16,1,.3,1);
       --ease-out-quart: cubic-bezier(.25,1,.5,1);
+      --font-sans: 'Inter', system-ui, sans-serif;
+      --font-display: 'alphaLyrae', system-ui, sans-serif;
       --book-w: 172px;
       --book-overlap: 74px;
     }
@@ -50,9 +64,16 @@
       min-height:100%;
       color:var(--fg);
       background:var(--bg);
-      font-family:'Inter',system-ui,sans-serif;
+      font-family:var(--font-sans);
+      font-synthesis:none;
       -webkit-font-smoothing:antialiased;
       overflow-x:hidden;
+    }
+    /* AlphaLyrae is a single medium weight; match the reference exactly */
+    .nav-logo, .hero-title, .btn, .spine-text, .cover-title, .card-title,
+    .list-mono, .detail-cover-title, .detail-title, .detail-download {
+      font-weight:500;
+      font-feature-settings:"calt";
     }
     a { color:inherit; text-decoration:none; }
     button { font:inherit; color:inherit; cursor:pointer; }
@@ -97,7 +118,7 @@
       animation:fadeIn .7s var(--ease-out-quart) both;
     }
     .nav-logo {
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       letter-spacing:-.01em;
       color:var(--fg);
       font-size:22px;
@@ -154,7 +175,7 @@
       position:relative;
     }
     .hero-title {
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       letter-spacing:-.035em;
       text-transform:uppercase;
       color:var(--fg);
@@ -204,7 +225,7 @@
     .btn {
       pointer-events:auto;
       height:50px;
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       letter-spacing:.01em;
       font-size:14px;
       font-weight:700;
@@ -295,7 +316,7 @@
     }
     .spine-text {
       writing-mode:vertical-rl;
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       font-weight:600;
       font-size:clamp(12px,11%,18px);
       letter-spacing:.01em;
@@ -491,7 +512,7 @@
       z-index:2;
     }
     .cover-title {
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       font-weight:700;
       font-size:clamp(.9rem,2.2vw,1.1rem);
       line-height:1.1;
@@ -506,7 +527,7 @@
       margin-top:2px;
     }
     .card-body { padding-top:12px; display:flex; flex-direction:column; gap:4px; }
-    .card-title { font-family:'Syne',system-ui,sans-serif; font-weight:600; font-size:15px; letter-spacing:-.01em; color:var(--fg); line-height:1.2; }
+    .card-title { font-family:var(--font-display); font-weight:600; font-size:15px; letter-spacing:-.01em; color:var(--fg); line-height:1.2; }
     .card-author { color:var(--muted); font-size:13px; }
     .book-card:hover .cover-wrap { transform:translateY(-4px); box-shadow:rgba(40,36,18,.2) 0 2px 2px,rgba(40,36,18,.26) 0 22px 44px; }
 
@@ -540,7 +561,7 @@
     }
     .list-thumb-bg { position:absolute; inset:0; display:grid; place-items:center; }
     .list-mono {
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       font-weight:700;
       font-size:16px;
       color:rgba(255,255,255,.94);
@@ -593,7 +614,7 @@
       background:linear-gradient(transparent 0%,rgba(0,0,0,.34) 52%,rgba(0,0,0,.74) 100%);
     }
     .detail-cover-title {
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       font-weight:700;
       font-size:clamp(1.1rem,3.4vw,1.6rem);
       line-height:1.08;
@@ -617,7 +638,7 @@
       margin-bottom:16px;
     }
     .detail-title {
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       letter-spacing:-.02em;
       color:var(--fg);
       text-wrap:balance;
@@ -638,7 +659,7 @@
     .detail-actions { display:flex; flex-wrap:wrap; align-items:center; gap:18px; margin-top:30px; }
     .detail-download {
       height:50px;
-      font-family:'Syne',system-ui,sans-serif;
+      font-family:var(--font-display);
       letter-spacing:.01em;
       font-size:14px; font-weight:700;
       color:var(--cta-fg);
