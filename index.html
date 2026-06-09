@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Ethereum Library</title>
+  <meta name="description" content="A curated collection of essential Ethereum reading. Free to read, free to keep.">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@500;700;800&display=swap');
+
+    /* ── Design tokens ── */
+    :root {
+      --ease-out-expo: cubic-bezier(.16,1,.3,1);
+      --ease-out-quart: cubic-bezier(.25,1,.5,1);
+      --book-w: 172px;
+      --book-overlap: 74px;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #ffffe1;
+      --bg-tint: #fffff2;
+      --fg: #1c1b12;
+      --muted: #6b6856;
+      --line: rgba(0,0,0,.14);
+      --cta-bg: linear-gradient(180deg,#2a2818 0%,#1c1b12 52%,#14130c 100%);
+      --cta-fg: #ffffe1;
+      --cta-border: rgba(8,7,3,.9);
+      --grain-opacity: .16;
+      --grain-invert: 0;
+      --sel-bg: rgba(40,36,18,.16);
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #14130c;
+      --bg-tint: #211f15;
+      --fg: #f1ecd9;
+      --muted: #9c9881;
+      --line: rgba(255,255,255,.16);
+      --cta-bg: linear-gradient(180deg,#fbf7e6 0%,#efe9d0 52%,#e4ddc0 100%);
+      --cta-fg: #14130c;
+      --cta-border: rgba(0,0,0,.5);
+      --grain-opacity: .1;
+      --grain-invert: 1;
+      --sel-bg: rgba(241,236,217,.22);
+    }
+
+    *,::before,::after { box-sizing:border-box; margin:0; padding:0; }
+    html,body { height:100%; }
+    body {
+      min-height:100%;
+      color:var(--fg);
+      background:var(--bg);
+      font-family:'Inter',system-ui,sans-serif;
+      -webkit-font-smoothing:antialiased;
+      overflow-x:hidden;
+    }
+    a { color:inherit; text-decoration:none; }
+    button { font:inherit; color:inherit; cursor:pointer; }
+    ::selection { background:var(--sel-bg); }
+    @media (prefers-reduced-motion:reduce) {
+      *,::before,::after { transition:none!important; animation:none!important; }
+    }
+
+    /* ── Shell ── */
+    .shell {
+      isolation:isolate;
+      background:radial-gradient(125% 70% at 78% -4%,var(--bg-tint) 0%,var(--bg) 52%),var(--bg);
+      min-height:100svh;
+      display:flex;
+      flex-direction:column;
+      position:relative;
+      overflow-x:hidden;
+    }
+
+    /* grain overlay */
+    .grain {
+      pointer-events:none;
+      user-select:none;
+      position:fixed;
+      inset:0; z-index:200;
+      opacity:var(--grain-opacity);
+      filter:invert(var(--grain-invert));
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat:repeat;
+      background-size:180px 180px;
+    }
+
+    /* ── Nav ── */
+    .nav {
+      z-index:20;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:24px;
+      padding:22px clamp(20px,4vw,56px);
+      position:relative;
+      animation:fadeIn .7s var(--ease-out-quart) both;
+    }
+    .nav-logo {
+      font-family:'Syne',system-ui,sans-serif;
+      letter-spacing:-.01em;
+      color:var(--fg);
+      font-size:22px;
+      font-weight:700;
+      line-height:.92;
+    }
+    .nav-logo span { display:block; }
+    .nav-right { display:flex; align-items:center; gap:22px; }
+    .nav-link {
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:500;
+      transition:color .16s;
+      cursor:pointer;
+      background:none;
+      border:none;
+    }
+    .nav-link:hover { color:var(--fg); }
+    .theme-btn {
+      width:38px; height:38px;
+      border:1px solid var(--line);
+      background:transparent;
+      border-radius:999px;
+      display:grid; place-items:center;
+      opacity:.78;
+      transition:opacity .18s,background .18s,transform .18s var(--ease-out-expo);
+    }
+    .theme-btn:hover { opacity:1; background:var(--bg-tint); transform:translateY(-1px); }
+    .theme-btn svg { width:18px; height:18px; }
+    .icon-sun  { display:none; }
+    .icon-moon { display:block; }
+    [data-theme="dark"] .icon-sun  { display:block; }
+    [data-theme="dark"] .icon-moon { display:none; }
+    @media (max-width:860px) { .nav { padding:16px clamp(20px,6vw,30px); } }
+
+    /* ── Home ── */
+    #home { display:flex; flex-direction:column; flex:1; }
+    #home.hidden { display:none; }
+
+    /* ── Hero ── */
+    .hero {
+      z-index:2;
+      display:grid;
+      grid-template:
+        "title ."
+        ". aside" 1fr
+        / minmax(0,1fr) min(40ch,42%);
+      align-content:start;
+      column-gap:clamp(28px,4vw,72px);
+      padding:clamp(4px,2vh,26px) clamp(20px,4vw,56px) 0;
+      pointer-events:none;
+      position:relative;
+    }
+    .hero-title {
+      font-family:'Syne',system-ui,sans-serif;
+      letter-spacing:-.035em;
+      text-transform:uppercase;
+      color:var(--fg);
+      grid-area:title;
+      align-self:start;
+      font-size:clamp(2.5rem,10vw,12rem);
+      font-weight:800;
+      line-height:.88;
+    }
+    .hero-line {
+      display:block;
+      animation:heroRise .95s var(--ease-out-expo) both;
+    }
+    .hero-line:nth-child(1) { animation-delay:.12s; }
+    .hero-line:nth-child(2) { animation-delay:.20s; }
+    .hero-line:nth-child(3) { animation-delay:.28s; }
+    .hero-aside {
+      grid-area:aside;
+      place-self:end;
+      max-width:40ch;
+      margin-top:clamp(48px,9vh,140px);
+      margin-bottom:calc(320px + 8vh);
+      animation:heroRise .95s var(--ease-out-expo) .46s both;
+    }
+    .hero-sub {
+      color:var(--muted);
+      font-size:clamp(1rem,.72rem + .55vw,1.125rem);
+      line-height:1.62;
+      text-wrap:pretty;
+    }
+    .hero-actions { display:flex; gap:12px; margin-top:24px; }
+    .hero-note {
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.6;
+      margin-top:22px;
+      text-wrap:pretty;
+    }
+    .hero-note a {
+      pointer-events:auto;
+      color:var(--fg);
+      text-decoration:underline 1px;
+      text-underline-offset:2px;
+      transition:opacity .16s;
+    }
+    .hero-note a:hover { opacity:.6; }
+    .btn {
+      pointer-events:auto;
+      height:50px;
+      font-family:'Syne',system-ui,sans-serif;
+      letter-spacing:.01em;
+      font-size:14px;
+      font-weight:700;
+      color:var(--cta-fg);
+      background:var(--cta-bg);
+      border:1px solid var(--cta-border);
+      border-radius:5px;
+      padding:0 26px;
+      display:inline-flex;
+      align-items:center;
+      gap:9px;
+      transition:transform .16s var(--ease-out-expo),box-shadow .16s;
+      box-shadow:rgba(255,255,255,.14) 0 1px inset,rgba(0,0,0,.5) 0 -1px inset,rgba(40,36,18,.2) 0 1px 1px,rgba(40,36,18,.24) 0 6px 14px,rgba(40,36,18,.16) 0 14px 28px;
+    }
+    .btn:hover { transform:translateY(-2px); box-shadow:rgba(255,255,255,.18) 0 1px inset,rgba(0,0,0,.5) 0 -1px inset,rgba(40,36,18,.28) 0 12px 24px,rgba(40,36,18,.2) 0 26px 44px; }
+    .btn:active { transform:translateY(1px); box-shadow:rgba(255,255,255,.08) 0 1px inset,rgba(0,0,0,.55) 0 2px 7px inset,rgba(40,36,18,.2) 0 1px 2px; }
+
+    @media (max-width:860px) {
+      .hero { display:contents; }
+      .hero-title { letter-spacing:-.03em; order:1; align-self:stretch; padding:clamp(8px,2vh,18px) clamp(20px,6vw,30px) 0; font-size:clamp(2.4rem,13vw,4.5rem); }
+      .hero-aside { pointer-events:auto; order:3; place-self:stretch start; max-width:min(48ch,100%); margin:0; padding:0 clamp(20px,6vw,30px); }
+    }
+
+    /* ── 3D Bookshelf ── */
+    .shelf {
+      z-index:1;
+      flex:0 0 auto;
+      align-self:end;
+      width:100%;
+      height:clamp(340px,50vh,600px);
+      position:relative;
+      overflow:hidden;
+      animation:shelfRise 1.1s var(--ease-out-expo) .5s both;
+    }
+    .shelf-stage {
+      position:absolute; inset:0;
+      perspective:2000px;
+      perspective-origin:50% 74%;
+      z-index:2;
+    }
+    .shelf-tilt {
+      position:absolute;
+      left:50%;
+      bottom:clamp(64px,9vh,220px);
+      transform-style:preserve-3d;
+      transform:translateX(-50%) scale(1.16) rotateX(3deg) rotateY(20deg) rotateZ(-2deg);
+      transform-origin:center bottom;
+    }
+    .shelf-track {
+      transform-style:preserve-3d;
+      display:flex;
+      align-items:flex-end;
+    }
+    .book {
+      flex:0 0 auto;
+      position:relative;
+      width:var(--bw,172px);
+      height:var(--bh,360px);
+      margin-left:calc(-1 * var(--book-overlap));
+      transform-style:preserve-3d;
+      transform:rotateY(-44deg);
+      transition:transform .26s var(--ease-out-expo);
+      cursor:pointer;
+    }
+    .book:first-child { margin-left:0; }
+    .book:hover { transform:translateY(-18px) translateZ(22px) rotateY(-44deg) scale(1.04); }
+    .book-face {
+      position:absolute;
+      top:0; left:0;
+      width:100%; height:100%;
+      border-radius:2px 5px 5px 2px;
+      overflow:hidden;
+      backface-visibility:hidden;
+    }
+    .book-face::after {
+      content:"";
+      position:absolute; inset:0;
+      background:
+        linear-gradient(105deg,rgba(255,255,255,.12) 0%,transparent 26%,rgba(0,0,0,.12) 100%),
+        linear-gradient(90deg,rgba(0,0,0,.24) 0,rgba(0,0,0,.24) 6px,transparent 6px);
+    }
+    .book-spine-label {
+      position:absolute; inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      padding:16px 12px 16px 6px;
+    }
+    .spine-text {
+      writing-mode:vertical-rl;
+      font-family:'Syne',system-ui,sans-serif;
+      font-weight:600;
+      font-size:clamp(12px,11%,18px);
+      letter-spacing:.01em;
+      color:rgba(255,255,255,.96);
+      text-shadow:rgba(0,0,0,.55) 0 1px 3px;
+      line-height:1.16;
+      max-height:calc(100% - 32px);
+      overflow:hidden;
+    }
+    .book-pages-face {
+      position:absolute;
+      top:3px;
+      left:100%;
+      width:var(--bt,30px);
+      height:calc(100% - 6px);
+      transform-origin:left center;
+      transform:rotateY(90deg);
+      background:repeating-linear-gradient(90deg,#efe9da,#efe9da 1px,#cfc6b0 1px,#cfc6b0 2.2px);
+      border-radius:0 2px 2px 0;
+    }
+    .book-top-face {
+      position:absolute;
+      top:0; left:0;
+      width:100%;
+      height:var(--bt,30px);
+      transform-origin:top center;
+      transform:rotateX(90deg);
+      background:linear-gradient(#efe9da,#d4ccb6);
+    }
+
+    .shelf-caption {
+      position:absolute;
+      bottom:clamp(10px,2.2vh,24px);
+      left:50%;
+      transform:translate(-50%,6px);
+      z-index:3;
+      font-size:13px;
+      letter-spacing:.02em;
+      text-align:center;
+      white-space:nowrap;
+      pointer-events:none;
+      opacity:0;
+      max-width:min(86vw,560px);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      transition:opacity .34s var(--ease-out-quart),transform .34s var(--ease-out-quart);
+    }
+    .shelf-caption.show { opacity:1; transform:translate(-50%,0); }
+    .cap-title { color:var(--fg); font-weight:500; }
+    .cap-author { color:var(--muted); }
+    .cap-author::before { content:"·"; margin:0 .55ch; }
+
+    @media (max-width:760px) {
+      .shelf-tilt { transform:translateX(-50%) scale(.82) rotateX(3deg) rotateY(20deg) rotateZ(-2deg); bottom:clamp(48px,7vh,120px); }
+      .shelf { height:clamp(300px,48vh,440px); }
+    }
+    @media (max-width:460px) {
+      .shelf-tilt { transform:translateX(-50%) scale(.66) rotateX(3deg) rotateY(20deg) rotateZ(-2deg); }
+    }
+
+    /* ── Collection page ── */
+    #collection {
+      display:none;
+      width:100%;
+      max-width:1180px;
+      margin:0 auto;
+      padding:clamp(8px,2vh,28px) clamp(20px,5vw,56px) clamp(80px,12vh,140px);
+      position:relative;
+      z-index:1;
+    }
+    #collection.active { display:block; }
+    .back-btn {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:500;
+      background:none;
+      border:none;
+      margin-bottom:clamp(28px,6vh,64px);
+      transition:color .16s;
+      animation:rise .6s var(--ease-out-expo) both;
+    }
+    .back-btn:hover { color:var(--fg); }
+
+    .controls {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+      animation:rise .7s var(--ease-out-expo) .22s both;
+    }
+    .search-wrap { flex:1 1 280px; min-width:0; position:relative; }
+    .search-icon {
+      position:absolute; top:50%; left:15px;
+      transform:translateY(-50%);
+      width:17px; height:17px;
+      color:var(--muted);
+      pointer-events:none;
+    }
+    .search-input {
+      width:100%; height:46px;
+      font:inherit;
+      color:var(--fg);
+      background:var(--bg-tint);
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:0 16px 0 42px;
+      font-size:15px;
+      transition:border-color .16s,box-shadow .16s;
+      appearance:none;
+    }
+    .search-input::placeholder { color:var(--muted); }
+    .search-input:focus { border-color:var(--fg); box-shadow:0 0 0 1px var(--fg); outline:none; }
+
+    .view-toggle {
+      display:inline-flex;
+      gap:3px;
+      padding:3px;
+      background:var(--bg-tint);
+      border:1px solid var(--line);
+      border-radius:9px;
+    }
+    .vbtn {
+      width:38px; height:38px;
+      background:transparent;
+      border:none;
+      border-radius:6px;
+      display:grid; place-items:center;
+      color:var(--muted);
+      transition:color .16s,background .16s;
+    }
+    .vbtn svg { width:18px; height:18px; }
+    .vbtn:hover { color:var(--fg); }
+    .vbtn.on { color:var(--fg); background:var(--bg); box-shadow:rgba(40,36,18,.16) 0 1px 2px; }
+
+    .count {
+      color:var(--muted);
+      font-size:13px;
+      letter-spacing:.04em;
+      font-variant-numeric:tabular-nums;
+      margin-bottom:20px;
+      animation:fadeIn .6s var(--ease-out-quart) .3s both;
+    }
+
+    /* Grid */
+    .grid-view {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(154px,1fr));
+      gap:clamp(20px,3vw,36px) clamp(16px,2.4vw,28px);
+    }
+    .grid-view.hidden { display:none; }
+    .book-card {
+      display:flex;
+      flex-direction:column;
+      cursor:pointer;
+      color:inherit;
+      animation:rise .5s var(--ease-out-expo) both;
+    }
+    .cover-wrap {
+      aspect-ratio:1368/2000;
+      width:100%;
+      border-radius:2px 6px 6px 2px;
+      position:relative;
+      overflow:hidden;
+      box-shadow:rgba(40,36,18,.16) 0 1px 1px,rgba(40,36,18,.2) 0 14px 30px;
+      transition:transform .2s var(--ease-out-expo),box-shadow .2s;
+    }
+    .cover-wrap::after {
+      content:"";
+      position:absolute; inset:0;
+      z-index:1;
+      pointer-events:none;
+      border-radius:inherit;
+      background:
+        linear-gradient(90deg,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 6px,transparent 6px),
+        linear-gradient(105deg,rgba(255,255,255,.1) 0%,transparent 30%,rgba(0,0,0,.1) 100%);
+    }
+    .cover-bg {
+      position:absolute; inset:0;
+    }
+    .cover-overlay {
+      position:absolute; inset:0;
+      background:linear-gradient(transparent 0%,rgba(0,0,0,.34) 52%,rgba(0,0,0,.74) 100%);
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-end;
+      padding:30px 13px 13px;
+      z-index:2;
+    }
+    .cover-title {
+      font-family:'Syne',system-ui,sans-serif;
+      font-weight:700;
+      font-size:clamp(.9rem,2.2vw,1.1rem);
+      line-height:1.1;
+      letter-spacing:-.01em;
+      color:rgba(255,255,255,.96);
+      text-shadow:rgba(0,0,0,.4) 0 1px 3px;
+      text-wrap:balance;
+    }
+    .cover-author {
+      color:rgba(255,255,255,.82);
+      font-size:11px;
+      margin-top:2px;
+    }
+    .card-body { padding-top:12px; display:flex; flex-direction:column; gap:4px; }
+    .card-title { font-family:'Syne',system-ui,sans-serif; font-weight:600; font-size:15px; letter-spacing:-.01em; color:var(--fg); line-height:1.2; }
+    .card-author { color:var(--muted); font-size:13px; }
+    .book-card:hover .cover-wrap { transform:translateY(-4px); box-shadow:rgba(40,36,18,.2) 0 2px 2px,rgba(40,36,18,.26) 0 22px 44px; }
+
+    /* List */
+    .list-view {
+      display:none;
+      flex-direction:column;
+      border-top:1px solid var(--line);
+    }
+    .list-view.active { display:flex; }
+    .list-row {
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:13px 6px;
+      border-bottom:1px solid var(--line);
+      cursor:pointer;
+      color:inherit;
+      transition:background .16s;
+      animation:rise .5s var(--ease-out-expo) both;
+    }
+    .list-row:hover { background:var(--bg-tint); }
+    .list-thumb {
+      flex-shrink:0;
+      width:40px;
+      aspect-ratio:1368/2000;
+      border-radius:1px 3px 3px 1px;
+      overflow:hidden;
+      position:relative;
+      box-shadow:rgba(40,36,18,.18) 0 1px 1px;
+    }
+    .list-thumb-bg { position:absolute; inset:0; display:grid; place-items:center; }
+    .list-mono {
+      font-family:'Syne',system-ui,sans-serif;
+      font-weight:700;
+      font-size:16px;
+      color:rgba(255,255,255,.94);
+      text-shadow:rgba(0,0,0,.6) 0 1px 2px;
+    }
+    .list-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+    .list-title { font-size:15.5px; font-weight:500; color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .list-author { font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .list-year { font-size:13px; color:var(--muted); flex-shrink:0; font-variant-numeric:tabular-nums; }
+
+    /* ── Keyframes ── */
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    @keyframes heroRise { from{opacity:0;transform:translateY(26px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes shelfRise { from{opacity:0;transform:translateY(26px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes rise { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<div class="shell">
+
+  <!-- Nav -->
+  <nav class="nav">
+    <a href="#" class="nav-logo" onclick="showHome();return false;">
+      <span>Ethereum</span><span>Library</span>
+    </a>
+    <div class="nav-right">
+      <button class="nav-link" onclick="showCollection()">Collection</button>
+      <button class="theme-btn" id="theme-btn" aria-label="Toggle theme">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Home -->
+  <div id="home">
+    <section class="hero">
+      <h1 class="hero-title">
+        <span class="hero-line">An</span>
+        <span class="hero-line">Ethereum</span>
+        <span class="hero-line">Library</span>
+      </h1>
+      <div class="hero-aside">
+        <p class="hero-sub">A curated collection of essential reads on Ethereum, cryptography, and decentralized systems. Free to read, free to keep.</p>
+        <div class="hero-actions">
+          <button class="btn" onclick="showCollection()">
+            Browse the collection
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+        <p class="hero-note">All texts are freely available. For more, see <a href="#">Ethereum.org</a>, <a href="#">ethresear.ch</a>, and the <a href="#">Yellow Paper</a>.</p>
+      </div>
+    </section>
+
+    <div class="shelf">
+      <div class="shelf-stage">
+        <div class="shelf-tilt">
+          <div class="shelf-track" id="shelf-track"></div>
+        </div>
+      </div>
+      <div class="shelf-caption" id="shelf-caption">
+        <span class="cap-title" id="cap-title"></span>
+        <span class="cap-author" id="cap-author"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collection -->
+  <div id="collection">
+    <button class="back-btn" onclick="showHome()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back
+    </button>
+    <div class="controls">
+      <div class="search-wrap">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" id="search" type="search" placeholder="Search titles, authors…" oninput="filterBooks()">
+      </div>
+      <div class="view-toggle">
+        <button class="vbtn on" id="gbtn" aria-label="Grid" onclick="setView('grid')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="vbtn" id="lbtn" aria-label="List" onclick="setView('list')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="grid-view" id="grid-view"></div>
+    <div class="list-view" id="list-view"></div>
+  </div>
+
+</div>
+<script>
+const BOOKS = [
+  {title:"Snow Crash",                author:"Neal Stephenson",  year:1992, section:"Fiction",            color:"#3d5a80", h:380, t:28},
+  {title:"True Names",                author:"Vernor Vinge",     year:1981, section:"Fiction",            color:"#2d6a4f", h:300, t:20},
+  {title:"Ready Player One",          author:"Ernest Cline",     year:2011, section:"Fiction",            color:"#7b2d8b", h:360, t:26},
+  {title:"A Fire Upon the Deep",      author:"Vernor Vinge",     year:1992, section:"Fiction",            color:"#1a535c", h:420, t:36},
+  {title:"Daemon",                    author:"Daniel Suarez",    year:2006, section:"Fiction",            color:"#5c4033", h:340, t:24},
+  {title:"Cryptonomicon",             author:"Neal Stephenson",  year:1999, section:"Fiction",            color:"#374785", h:440, t:38},
+  {title:"Finite and Infinite Games", author:"James Carse",      year:1986, section:"Crypto Spirituality", color:"#6b3fa0", h:300, t:18},
+  {title:"Tao Te Ching",              author:"Lao Tzu",          year:"c. 400 BC", section:"Crypto Spirituality", color:"#2d5016", h:280, t:18},
+  {title:"The Infinite Machine",      author:"Camila Russo",     year:2020, section:"Computing History",   color:"#b5451b", h:400, t:32},
+];
+
+// Build 3D shelf
+function buildShelf() {
+  const track = document.getElementById('shelf-track');
+  const caption = document.getElementById('shelf-caption');
+  const capTitle = document.getElementById('cap-title');
+  const capAuthor = document.getElementById('cap-author');
+  BOOKS.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'book';
+    div.style.cssText = `--bh:${b.h}px; --bt:${b.t}px; height:${b.h}px;`;
+    div.innerHTML = `
+      <div class="book-face" style="background:${b.color};">
+        <div class="book-spine-label"><span class="spine-text">${b.title}</span></div>
+      </div>
+      <div class="book-pages-face" style="--bt:${b.t}px; width:${b.t}px;"></div>
+      <div class="book-top-face" style="--bt:${b.t}px; height:${b.t}px;"></div>
+    `;
+    div.addEventListener('mouseenter', () => {
+      capTitle.textContent = b.title;
+      capAuthor.textContent = b.author;
+      caption.classList.add('show');
+    });
+    div.addEventListener('mouseleave', () => caption.classList.remove('show'));
+    div.addEventListener('click', showCollection);
+    track.appendChild(div);
+  });
+}
+
+// Render grid/list
+function renderBooks(q = '') {
+  const lq = q.toLowerCase();
+  const filtered = BOOKS.filter(b =>
+    b.title.toLowerCase().includes(lq) || b.author.toLowerCase().includes(lq)
+  );
+  document.getElementById('count').textContent = `${filtered.length} title${filtered.length !== 1 ? 's' : ''}`;
+
+  document.getElementById('grid-view').innerHTML = filtered.map((b, i) => `
+    <div class="book-card" style="animation-delay:${i*25}ms">
+      <div class="cover-wrap">
+        <div class="cover-bg" style="background:${b.color}"></div>
+        <div class="cover-overlay">
+          <div class="cover-title">${b.title}</div>
+          <div class="cover-author">${b.author}</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${b.title}</div>
+        <div class="card-author">${b.author}</div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('list-view').innerHTML = filtered.map((b, i) => `
+    <div class="list-row" style="animation-delay:${i*15}ms">
+      <div class="list-thumb">
+        <div class="list-thumb-bg" style="background:${b.color}">
+          <span class="list-mono">${b.title[0]}</span>
+        </div>
+      </div>
+      <div class="list-main">
+        <div class="list-title">${b.title}</div>
+        <div class="list-author">${b.author}</div>
+      </div>
+      <div class="list-year">${b.year}</div>
+    </div>
+  `).join('');
+}
+
+function filterBooks() { renderBooks(document.getElementById('search').value); }
+
+let view = 'grid';
+function setView(v) {
+  view = v;
+  document.getElementById('gbtn').classList.toggle('on', v==='grid');
+  document.getElementById('lbtn').classList.toggle('on', v==='list');
+  document.getElementById('grid-view').classList.toggle('hidden', v==='list');
+  document.getElementById('list-view').classList.toggle('active', v==='list');
+}
+
+function showHome() {
+  document.getElementById('home').classList.remove('hidden');
+  document.getElementById('collection').classList.remove('active');
+}
+function showCollection() {
+  document.getElementById('home').classList.add('hidden');
+  document.getElementById('collection').classList.add('active');
+  renderBooks();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+document.getElementById('theme-btn').addEventListener('click', () => {
+  document.documentElement.dataset.theme =
+    document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+buildShelf();
+</script>
+</body>
+</html>
