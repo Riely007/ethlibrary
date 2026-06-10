@@ -287,12 +287,17 @@
       height:var(--bh,360px);
       margin-left:calc(-1 * var(--book-overlap));
       transform-style:preserve-3d;
-      transform:rotateY(-44deg);
-      transition:transform .26s var(--ease-out-expo);
+      transform:translateY(var(--lift,0px)) translateZ(var(--pop,0px)) rotateY(-44deg) scale(var(--scale,1));
       cursor:pointer;
     }
     .book:first-child { margin-left:0; }
-    .book:hover { transform:translateY(-18px) translateZ(22px) rotateY(-44deg) scale(1.04); }
+    .book-face {
+      filter:brightness(calc(1 + .06 * var(--foc,0)));
+    }
+    @media (prefers-reduced-motion:reduce) {
+      .book { transition:transform .26s var(--ease-out-expo); }
+      .book:hover { transform:translateY(-18px) translateZ(22px) rotateY(-44deg) scale(1.04); }
+    }
     .book-face {
       position:absolute;
       top:0; left:0;
@@ -726,7 +731,7 @@
       </div>
     </section>
 
-    <div class="shelf">
+    <div class="shelf" id="shelf">
       <div class="shelf-stage">
         <div class="shelf-tilt">
           <div class="shelf-track" id="shelf-track"></div>
@@ -881,9 +886,12 @@ function buildShelf() {
   const caption = document.getElementById('shelf-caption');
   const capTitle = document.getElementById('cap-title');
   const capAuthor = document.getElementById('cap-author');
-  BOOKS.forEach(b => {
+
+  function makeBook(b) {
     const div = document.createElement('div');
     div.className = 'book';
+    div.dataset.title = b.title;
+    div.dataset.author = b.author;
     div.style.cssText = `--bh:${b.h}px; --bt:${b.t}px; height:${b.h}px;`;
     div.innerHTML = `
       <div class="book-face" style="background:${b.color};">
@@ -892,15 +900,106 @@ function buildShelf() {
       <div class="book-pages-face" style="--bt:${b.t}px; width:${b.t}px;"></div>
       <div class="book-top-face" style="--bt:${b.t}px; height:${b.t}px;"></div>
     `;
-    div.addEventListener('mouseenter', () => {
-      capTitle.textContent = b.title;
-      capAuthor.textContent = b.author;
-      caption.classList.add('show');
-    });
-    div.addEventListener('mouseleave', () => caption.classList.remove('show'));
     div.addEventListener('click', () => navTo('book/' + slugify(b.title)));
-    track.appendChild(div);
-  });
+    return div;
+  }
+
+  // Render the set twice so the strip can loop seamlessly.
+  BOOKS.forEach(b => track.appendChild(makeBook(b)));
+  BOOKS.forEach(b => track.appendChild(makeBook(b)));
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) {
+    // No auto-drift: keep simple hover focus + caption.
+    track.querySelectorAll('.book').forEach(div => {
+      div.addEventListener('mouseenter', () => {
+        capTitle.textContent = div.dataset.title;
+        capAuthor.textContent = div.dataset.author;
+        caption.classList.add('show');
+      });
+      div.addEventListener('mouseleave', () => caption.classList.remove('show'));
+    });
+    return;
+  }
+
+  const books = Array.from(track.querySelectorAll('.book'));
+  let setWidth = 0;          // width of one BOOKS set, measured after layout
+  let offset = 0;            // current scroll position (px into the strip)
+  const speed = 22;         // px per second drift
+  let paused = false;
+  let lastFocusIdx = -1;
+  let lastT = performance.now();
+
+  // Drag-to-scrub
+  let dragging = false, dragStartX = 0, dragStartOffset = 0;
+  const shelf = document.getElementById('shelf') || track.closest('.shelf');
+  function onDown(e){ dragging = true; paused = true; dragStartX = (e.touches?e.touches[0].clientX:e.clientX); dragStartOffset = offset; }
+  function onMove(e){ if(!dragging) return; const x=(e.touches?e.touches[0].clientX:e.clientX); offset = dragStartOffset - (x - dragStartX); }
+  function onUp(){ dragging = false; setTimeout(()=>{ if(!hovering) paused = false; }, 600); }
+  let hovering = false;
+  if (shelf) {
+    shelf.addEventListener('mouseenter', ()=>{ hovering = true; paused = true; });
+    shelf.addEventListener('mouseleave', ()=>{ hovering = false; if(!dragging) paused = false; });
+    shelf.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    shelf.addEventListener('touchstart', onDown, {passive:true});
+    shelf.addEventListener('touchmove', onMove, {passive:true});
+    shelf.addEventListener('touchend', onUp);
+  }
+
+  function measure() {
+    // offsetLeft of the first book of the second copy = width of one set.
+    if (books.length >= BOOKS.length * 2) {
+      setWidth = books[BOOKS.length].offsetLeft - books[0].offsetLeft;
+    }
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+    if (!setWidth) measure();
+
+    if (!paused && setWidth) offset += speed * dt;
+    if (setWidth) offset = ((offset % setWidth) + setWidth) % setWidth;
+
+    track.style.transform = `translateX(${-offset}px)`;
+
+    // The visual focus point sits at the centre of one set.
+    const focusLocal = offset + setWidth / 2;
+    let bestDist = Infinity, bestIdx = -1;
+
+    for (let i = 0; i < books.length; i++) {
+      const div = books[i];
+      const bw = div.offsetWidth;
+      const center = div.offsetLeft + bw / 2;
+      // distance, accounting for the wrap so the loop is smooth
+      let d = center - focusLocal;
+      if (setWidth) { if (d > setWidth/2) d -= setWidth; else if (d < -setWidth/2) d += setWidth; }
+      const dist = Math.abs(d);
+      const range = bw * 1.25;
+      const foc = Math.max(0, 1 - dist / range);
+      div.style.setProperty('--foc', foc.toFixed(3));
+      div.style.setProperty('--lift', (-26 * foc).toFixed(1) + 'px');
+      div.style.setProperty('--pop', (54 * foc).toFixed(1) + 'px');
+      div.style.setProperty('--scale', (1 + 0.05 * foc).toFixed(3));
+      div.style.zIndex = String(Math.round(foc * 100));
+      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+
+    if (bestIdx !== -1 && bestIdx !== lastFocusIdx) {
+      lastFocusIdx = bestIdx;
+      capTitle.textContent = books[bestIdx].dataset.title;
+      capAuthor.textContent = books[bestIdx].dataset.author;
+      caption.classList.add('show');
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // Wait for layout/fonts before measuring widths.
+  requestAnimationFrame(() => { measure(); requestAnimationFrame(frame); });
+  window.addEventListener('resize', () => { setWidth = 0; });
 }
 
 // Render grid/list
