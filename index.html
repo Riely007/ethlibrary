@@ -902,9 +902,12 @@ function buildShelf() {
       <div class="book-pages-face" style="--bt:${b.t}px; width:${b.t}px;"></div>
       <div class="book-top-face" style="--bt:${b.t}px; height:${b.t}px;"></div>
     `;
+    div.addEventListener('mouseenter', () => { hoveredBook = div; });
+    div.addEventListener('mouseleave', () => { if (hoveredBook === div) hoveredBook = null; });
     div.addEventListener('click', () => navTo('book/' + slugify(b.title)));
     return div;
   }
+  let hoveredBook = null;
 
   // Render the set twice so the strip can loop seamlessly.
   BOOKS.forEach(b => track.appendChild(makeBook(b)));
@@ -929,7 +932,7 @@ function buildShelf() {
   let offset = 0;            // current scroll position (px into the strip)
   const speed = 22;         // px per second drift
   let paused = false;
-  let lastFocusIdx = -1;
+  let lastFocusDiv = null;
   let lastT = performance.now();
 
   // Drag-to-scrub
@@ -980,19 +983,27 @@ function buildShelf() {
       if (setWidth) { if (d > setWidth/2) d -= setWidth; else if (d < -setWidth/2) d += setWidth; }
       const dist = Math.abs(d);
       const range = bw * 1.25;
-      const foc = Math.max(0, 1 - dist / range);
+      let foc = Math.max(0, 1 - dist / range);
+      // A hovered book pops to full focus regardless of position.
+      if (div === hoveredBook) foc = 1;
+      // Smooth the value so hover/unhover eases instead of snapping.
+      const prev = parseFloat(div.dataset.foc || '0');
+      foc = prev + (foc - prev) * Math.min(1, dt * 12);
+      div.dataset.foc = foc;
       div.style.setProperty('--foc', foc.toFixed(3));
-      div.style.setProperty('--lift', (-26 * foc).toFixed(1) + 'px');
-      div.style.setProperty('--pop', (54 * foc).toFixed(1) + 'px');
-      div.style.setProperty('--scale', (1 + 0.05 * foc).toFixed(3));
+      div.style.setProperty('--lift', (-30 * foc).toFixed(1) + 'px');
+      div.style.setProperty('--pop', (58 * foc).toFixed(1) + 'px');
+      div.style.setProperty('--scale', (1 + 0.06 * foc).toFixed(3));
       div.style.zIndex = String(Math.round(foc * 100));
       if (dist < bestDist) { bestDist = dist; bestIdx = i; }
     }
 
-    if (bestIdx !== -1 && bestIdx !== lastFocusIdx) {
-      lastFocusIdx = bestIdx;
-      capTitle.textContent = books[bestIdx].dataset.title;
-      capAuthor.textContent = books[bestIdx].dataset.author;
+    // Caption follows the hovered book if any, else the centred one.
+    const focusDiv = hoveredBook || (bestIdx !== -1 ? books[bestIdx] : null);
+    if (focusDiv && focusDiv !== lastFocusDiv) {
+      lastFocusDiv = focusDiv;
+      capTitle.textContent = focusDiv.dataset.title;
+      capAuthor.textContent = focusDiv.dataset.author;
       caption.classList.add('show');
     }
 
