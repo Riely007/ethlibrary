@@ -14,12 +14,18 @@ A single-page reading library for Ethereum, cryptography, and decentralized syst
 
 ## Running
 
-Open `index.html` directly in a browser, or serve the folder:
+Open `index.html` directly in a browser, or serve the folder locally:
 
 ```bash
-python3 -m http.server 8000
+# --bind 127.0.0.1 keeps the server on your machine only,
+# not exposed to others on your network.
+python3 -m http.server 8000 --bind 127.0.0.1
 # then visit http://localhost:8000
 ```
+
+> Note: GitHub labels this repo "100% HTML" only because the CSS and
+> JavaScript live inside `index.html`. It's a single-file site, not a
+> CSS-less one.
 
 ## Contributing — add a book
 
