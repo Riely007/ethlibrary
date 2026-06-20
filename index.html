@@ -533,7 +533,7 @@
     .cover-wrap::after {
       content:"";
       position:absolute; inset:0;
-      z-index:1;
+      z-index:4;
       pointer-events:none;
       border-radius:inherit;
       background:
@@ -543,6 +543,15 @@
     .cover-bg {
       position:absolute; inset:0;
     }
+    .cover-img {
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit:cover;
+      z-index:3;
+      display:block;
+      background:var(--bg-tint);
+    }
+    .cover-fallback .cover-img { display:none; }
     .cover-overlay {
       position:absolute; inset:0;
       background:linear-gradient(transparent 0%,rgba(0,0,0,.34) 52%,rgba(0,0,0,.74) 100%);
@@ -642,14 +651,24 @@
     .detail-cover::after {
       content:"";
       position:absolute; inset:0;
+      z-index:4;
       pointer-events:none;
       border-radius:inherit;
       background:
         linear-gradient(90deg,rgba(0,0,0,.22) 0,rgba(0,0,0,.22) 7px,transparent 7px),
         linear-gradient(105deg,rgba(255,255,255,.12) 0%,transparent 30%,rgba(0,0,0,.12) 100%);
     }
+    .detail-cover-img {
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit:cover;
+      z-index:3;
+      display:block;
+      background:var(--bg-tint);
+    }
     .detail-cover-overlay {
       position:absolute; inset:0;
+      z-index:2;
       display:flex; flex-direction:column; justify-content:flex-end;
       padding:38px 18px 18px;
       background:linear-gradient(transparent 0%,rgba(0,0,0,.34) 52%,rgba(0,0,0,.74) 100%);
@@ -812,7 +831,8 @@
     </button>
     <div class="detail-hero">
       <div class="detail-cover" id="dt-cover">
-        <div class="detail-cover-overlay">
+        <img class="detail-cover-img" id="dt-cover-img" alt="" hidden>
+        <div class="detail-cover-overlay" id="dt-cover-overlay">
           <div class="detail-cover-title" id="dt-cover-title"></div>
           <div class="detail-cover-author" id="dt-cover-author"></div>
         </div>
@@ -966,6 +986,36 @@ BOOKS.forEach(b => {
   else { b.color = PALETTE[_pi % PALETTE.length]; _pi++; }
 });
 
+// Real cover art (OpenLibrary covers API) for books that have a published
+// cover. Essays, whitepapers, and manifestos keep the colored plate.
+const COVERS = {
+  "Snow Crash": 392508,
+  "True Names": 182639,
+  "Ready Player One": 8737626,
+  "A Fire Upon the Deep": 9261466,
+  "Daemon": 6404884,
+  "Cryptonomicon": 6424001,
+  "Finite and Infinite Games": 6609213,
+  "Tao Te Ching": 662232,
+  "The Sovereign Individual": 425227,
+  "The Road to Serfdom": 6991871,
+  "The Origins of Totalitarianism": 10793645,
+  "The Precipice": 9338949,
+  "The Machinery of Freedom": 604607,
+  "1984": 8745958,
+  "Animal Farm": 11261770,
+  "Brave New World": 8231823,
+  "An Austrian Perspective on the History of Economic Thought": 3876643,
+  "The Infinite Machine": 10302262,
+  "Mastering Ethereum": 8507633,
+  "Masters of Doom": 606299,
+  "The Internet Is My Religion": 13327306,
+  "The Cathedral and the Bazaar": 805932,
+};
+BOOKS.forEach(b => {
+  if (COVERS[b.title]) b.cover = `https://covers.openlibrary.org/b/id/${COVERS[b.title]}-L.jpg`;
+});
+
 // Build 3D shelf
 function buildShelf() {
   const track = document.getElementById('shelf-track');
@@ -1114,6 +1164,9 @@ function renderBooks(q = '') {
   document.getElementById('grid-view').innerHTML = filtered.map((b, i) => `
     <div class="book-card" style="animation-delay:${i*25}ms" onclick="navTo('book/${slugify(b.title)}')">
       <div class="cover-wrap">
+        ${b.cover
+          ? `<img class="cover-img" src="${b.cover}" alt="${b.title}" loading="lazy" onerror="this.parentElement.classList.add('cover-fallback')">`
+          : ''}
         <div class="cover-bg" style="background:${b.color}"></div>
         <div class="cover-overlay">
           <div class="cover-title">${b.title}</div>
@@ -1175,6 +1228,21 @@ function renderBook(book) {
   document.getElementById('dt-cover').style.background = book.color;
   document.getElementById('dt-cover-title').textContent = book.title;
   document.getElementById('dt-cover-author').textContent = book.author;
+
+  // Show the real cover image when available; fall back to the colored plate.
+  const coverImg = document.getElementById('dt-cover-img');
+  const coverOverlay = document.getElementById('dt-cover-overlay');
+  if (book.cover) {
+    coverImg.src = book.cover;
+    coverImg.alt = book.title;
+    coverImg.hidden = false;
+    coverOverlay.style.display = 'none';
+    coverImg.onerror = () => { coverImg.hidden = true; coverOverlay.style.display = ''; };
+  } else {
+    coverImg.hidden = true;
+    coverImg.removeAttribute('src');
+    coverOverlay.style.display = '';
+  }
   document.getElementById('dt-series').textContent = book.section;
   document.getElementById('dt-title').textContent = book.title;
   document.getElementById('dt-author').textContent = book.author;
