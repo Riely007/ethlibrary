@@ -1095,9 +1095,11 @@ function buildShelf() {
   }
   let hoveredBook = null;
 
-  // Render the set twice so the strip can loop seamlessly.
-  BOOKS.forEach(b => track.appendChild(makeBook(b)));
-  BOOKS.forEach(b => track.appendChild(makeBook(b)));
+  // Books (with covers) first, then essays/papers — so the shelf opens
+  // on the most visual items. Render the set twice for a seamless loop.
+  const shelfBooks = [...BOOKS.filter(isBook), ...BOOKS.filter(b => !isBook(b))];
+  shelfBooks.forEach(b => track.appendChild(makeBook(b)));
+  shelfBooks.forEach(b => track.appendChild(makeBook(b)));
 
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce) {
