@@ -1051,6 +1051,12 @@ BOOKS.forEach(b => {
   if (COVERS[b.title]) b.cover = `https://covers.openlibrary.org/b/id/${COVERS[b.title]}-L.jpg`;
 });
 
+// Self-hosted covers for books OpenLibrary doesn't have.
+const LOCAL_COVERS = {
+  "How the Internet Happened": "covers/how-the-internet-happened.jpg",
+};
+BOOKS.forEach(b => { if (LOCAL_COVERS[b.title]) b.cover = LOCAL_COVERS[b.title]; });
+
 // Published books vs essays/papers/posts, for grouping the collection.
 const BOOK_TITLES = new Set([...Object.keys(COVERS), "How the Internet Happened"]);
 function isBook(b) { return BOOK_TITLES.has(b.title); }
