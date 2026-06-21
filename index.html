@@ -1192,8 +1192,6 @@ function buildShelf() {
       div.style.setProperty('--lift', (-34 * foc).toFixed(1) + 'px');
       div.style.setProperty('--pop', (64 * foc).toFixed(1) + 'px');
       div.style.setProperty('--scale', (1 + 0.09 * foc).toFixed(3));
-      // Spotlight: the centred book stays full, the rest dim back.
-      div.style.opacity = (0.5 + 0.5 * foc).toFixed(3);
       div.style.zIndex = String(Math.round(foc * 100));
       if (dist < bestDist) { bestDist = dist; bestIdx = i; }
     }
