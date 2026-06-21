@@ -1168,23 +1168,28 @@ function buildShelf() {
 
     track.style.transform = `translateX(${-offset}px)`;
 
-    // The visual focus point sits at the centre of one set.
-    const focusLocal = offset + setWidth / 2;
-    let bestDist = Infinity, bestIdx = -1;
+    // Focus by ACTUAL on-screen position, so the popped book and the caption
+    // match whatever book visually sits in the centre (the 3D tilt/perspective
+    // means the track-centre book isn't the one that looks centred).
+    const shelfRect = shelf.getBoundingClientRect();
+    const centerX = shelfRect.left + shelfRect.width / 2;
+    const range = shelfRect.width * 0.16;   // how quickly focus falls off
 
+    // Read pass: each book's on-screen centre x (forces one layout).
+    let bestDist = Infinity, bestIdx = -1;
+    const dists = new Array(books.length);
+    for (let i = 0; i < books.length; i++) {
+      const r = books[i].getBoundingClientRect();
+      const dist = Math.abs((r.left + r.width / 2) - centerX);
+      dists[i] = dist;
+      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+
+    // Write pass: apply focus styles.
     for (let i = 0; i < books.length; i++) {
       const div = books[i];
-      const bw = div.offsetWidth;
-      const center = div.offsetLeft + bw / 2;
-      // distance, accounting for the wrap so the loop is smooth
-      let d = center - focusLocal;
-      if (setWidth) { if (d > setWidth/2) d -= setWidth; else if (d < -setWidth/2) d += setWidth; }
-      const dist = Math.abs(d);
-      const range = bw * 1.25;
-      let foc = Math.max(0, 1 - dist / range);
-      // A hovered book pops to full focus regardless of position.
+      let foc = Math.max(0, 1 - dists[i] / range);
       if (div === hoveredBook) foc = 1;
-      // Smooth the value so hover/unhover eases instead of snapping.
       const prev = parseFloat(div.dataset.foc || '0');
       foc = prev + (foc - prev) * Math.min(1, dt * 12);
       div.dataset.foc = foc;
@@ -1193,7 +1198,6 @@ function buildShelf() {
       div.style.setProperty('--pop', (64 * foc).toFixed(1) + 'px');
       div.style.setProperty('--scale', (1 + 0.09 * foc).toFixed(3));
       div.style.zIndex = String(Math.round(foc * 100));
-      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
     }
 
     // Caption follows the hovered book if any, else the centred one.
